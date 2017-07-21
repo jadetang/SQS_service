@@ -16,34 +16,34 @@ public interface QueueService {
     //   pushes a message onto a queue.
     // - pull
     //   retrieves a single message from a queue.
-    // - delete
+    // - removeMessage
     //   deletes a message from the queue that was received by pull().
     //
 
     /**
      * push a message to a queue
-     * @param queueUrl queue's url
+     * @param queueName queue's name
      * @param messageBody message to push
      * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
      * @throws com.example.exception.OverInFlightLimitException if the number of in flight message exceed the limit
      */
-    void pushMessage(String queueUrl,String messageBody);
+    void pushMessage(String queueName,String messageBody);
 
     /**
      * pull a message from a queue, return null if the the queue is empty
-     * @param queueUrl queue's url
+     * @param queueName queue's name
      * @return the message
      * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
      */
-    Message pullMessage(String queueUrl);
+    Message pullMessage(String queueName);
 
     /**
-     * delete a message from a queue
-     * @param queueUrl the queue's url
+     * removeMessage a message from a queue
+     * @param queueName the queue's name
      * @param receiptHandle the message's receipt handle
      * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
      */
-    void deleteMessage(String queueUrl,String receiptHandle);
+    void deleteMessage(String queueName,String receiptHandle);
 
     /**
      * create a queue

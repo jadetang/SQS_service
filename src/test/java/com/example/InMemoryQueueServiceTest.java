@@ -1,7 +1,6 @@
 package com.example;
 
-import com.example.exception.QueueDoesNotExistException;
-import com.example.exception.QueueNameExistsException;
+import com.example.InFilght.InFlightMock;
 import com.example.model.Message;
 import org.junit.Assert;
 import org.junit.Test;
@@ -9,46 +8,25 @@ import org.junit.Test;
 /**
  * @author sanguan.tangsicheng on 2017/7/20 下午4:22
  */
-public class InMemoryQueueServiceTest {
+public class InMemoryQueueServiceTest extends BaseTest {
 
-    int visibilityTimeout = 5;
 
-    @Test
-    public void createQueueShowReturnQueueName() throws Exception {
-        InMemoryQueueService queueService = new InMemoryQueueService(10);
-        String queueName = "test_queue";
-        String queueUrl = queueService.createQueue(queueName,visibilityTimeout);
-        Assert.assertEquals(queueName,queueUrl);
-    }
-
-    @Test(expected = QueueNameExistsException.class)
-    public void createQueueWithDifferentTimeoutShouldThrowException(){
-        InMemoryQueueService queueService = new InMemoryQueueService(10);
-        String queueName = "test_queue";
-        queueService.createQueue(queueName,5);
-        queueService.createQueue(queueName,10);
-    }
-
-    @Test(expected = QueueDoesNotExistException.class)
-    public void putMessageToNonExistQueueShouldThrowException(){
-        InMemoryQueueService queueService = new InMemoryQueueService(10);
-        String messageBody = "this is a message";
-        queueService.pushMessage("emptyUrl",messageBody);
+    @Override
+    public QueueService getQueueServiceIrrelevantToVisibilityTimeout() {
+        return new InMemoryQueueService(InFlightMock.doNothingInFlightQueue());
     }
 
 
     @Test
-    public void pullMessageBodyShouldEqualToOriginMessage(){
-        InMemoryQueueService queue = new InMemoryQueueService(10);
+    public void afterVisibilityTheMessageCouldReceivedAgain(){
         String queueName = "testQueue";
-        String queueUrl = queue.createQueue(queueName,10);
-        String messageBody = "this is a message";
-        queue.pushMessage(queueUrl,messageBody);
-        Message messageFromQueue = queue.pullMessage(queueUrl);
-        Assert.assertEquals(messageBody,messageFromQueue.getBody());
-
+        String messageBody = "this is a test,the message should place at the head of the queue after visibility time out";
+        InMemoryQueueService queueService = new InMemoryQueueService(InFlightMock.timeOutFastInFlightQueue());
+        queueService.createQueue(queueName,10);
+        queueService.pushMessage(queueName,messageBody);
+        Message message = queueService.pullMessage(queueName);
+        // do something else, pretend 10 second past, the message is not deleted
+        Message messageReceivedAgain = queueService.pullMessage(queueName);
+        Assert.assertEquals(message.getBody(),messageReceivedAgain.getBody());
     }
-
-
-
 }

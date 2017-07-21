@@ -7,6 +7,7 @@ import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,7 +46,7 @@ public class Main {
 
         SendMessageResult result = sqs.sendMessage(request);
 
-        System.out.println(result);
+        System.out.println("send message result:"+result);
 
     }
 
@@ -56,6 +57,17 @@ public class Main {
         request.setQueueUrl(queueUrl);
         request.setReceiptHandle(messageReceiptHandler);
         sqs.deleteMessage(request);
+    }
+
+    public static List<Message> getMessage(String queueName, int timeOut){
+        String queueUrl = sqs.getQueueUrl(queueName).getQueueUrl();
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest();
+        receiveMessageRequest.withQueueUrl(queueUrl).withVisibilityTimeout(timeOut);
+
+        ReceiveMessageResult result = sqs.receiveMessage(receiveMessageRequest);
+
+        return result.getMessages();
+
     }
 
 
@@ -84,8 +96,14 @@ public class Main {
 
 
       //  createQueue("1",0);
-       // sendMesage("1","");
-        deleteMessage("1","jfkafa");
+        sendMesage("1","test messaage");
+        List<Message> messages = getMessage("1",0);
+        messages.forEach(System.out::println);
+        String ReceiptHandle = messages.get(0).getReceiptHandle();
+        deleteMessage("1",ReceiptHandle);
+        messages = getMessage("1",0);
+        messages.forEach(System.out::println);
+
 
     }
 

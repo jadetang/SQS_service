@@ -15,15 +15,15 @@ public class SqsQueueService implements QueueService {
   public SqsQueueService(AmazonSQSClient sqsClient) {
   }
 
-  @Override public void pushMessage(String queueUrl, String messageBody) {
+  @Override public void pushMessage(String queueName, String messageBody) {
 
   }
 
-  @Override public Message pullMessage(String queueUrl) {
+  @Override public Message pullMessage(String queueName) {
     return null;
   }
 
-  @Override public void deleteMessage(String queueUrl, String receiptHandle) {
+  @Override public void deleteMessage(String queueName, String receiptHandle) {
 
   }
 

@@ -1,12 +1,12 @@
 package com.example;
 
-import com.example.exception.QueueDoesNotExistException;
-import com.example.exception.QueueNameExistsException;
-import com.example.model.Message;
+import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
+import com.amazonaws.services.sqs.model.QueueNameExistsException;
 import org.junit.Assert;
 import org.junit.Test;
 
-/** base test about queue service irrelevant to the visibility timeout
+ /**
  * @author sanguan.tangsicheng on 2017/7/20 下午11:27
  */
 public abstract class BaseTest {
@@ -17,10 +17,10 @@ public abstract class BaseTest {
 
     @Test
     public void pullMessageBodyShouldEqualToOriginMessage(){
-        QueueService queue = getQueueServiceIrrelevantToVisibilityTimeout();
-        String queueUrl = queue.createQueue(queueName,10);
-        queue.pushMessage(queueUrl,messageBody);
-        Message messageFromQueue = queue.pullMessage(queueUrl);
+        QueueService queue = getQueueService();
+        queue.createQueue(queueName,15L);
+        queue.pushMessage(queueName,messageBody);
+        Message messageFromQueue = queue.pullMessage(queueName);
         Assert.assertEquals(messageBody,messageFromQueue.getBody());
     }
 
@@ -28,18 +28,19 @@ public abstract class BaseTest {
 
     @Test(expected = QueueNameExistsException.class)
     public void createQueueWithDifferentTimeoutShouldThrowException(){
-        QueueService queueService = getQueueServiceIrrelevantToVisibilityTimeout();
-        queueService.createQueue(queueName,5);
-        queueService.createQueue(queueName,10);
+        QueueService queueService = getQueueService();
+        queueService.createQueue(queueName,5L);
+        queueService.createQueue(queueName,10L);
     }
 
 
 
     @Test(expected = QueueDoesNotExistException.class)
     public void putMessageToNonExistQueueShouldThrowException(){
-        QueueService queueService = getQueueServiceIrrelevantToVisibilityTimeout();
+        QueueService queueService = getQueueService();
         queueService.pushMessage("emptyUrl",messageBody);
     }
+
 
 
 /*    @Test
@@ -67,5 +68,5 @@ public abstract class BaseTest {
      * return a queue service who's behavior irrelevant to the visibility timeout
      * @return
      */
-    public abstract QueueService getQueueServiceIrrelevantToVisibilityTimeout();
+    public abstract QueueService getQueueService();
 }

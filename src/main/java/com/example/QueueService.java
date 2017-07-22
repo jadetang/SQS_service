@@ -1,6 +1,7 @@
 package com.example;
 
-import com.example.model.Message;
+
+import com.amazonaws.services.sqs.model.Message;
 
 public interface QueueService {
 
@@ -23,17 +24,14 @@ public interface QueueService {
     /**
      * push a message to a queue
      * @param queueName queue's name
-     * @param messageBody message to push
-     * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
-     * @throws com.example.exception.OverInFlightLimitException if the number of in flight message exceed the limit
+     * @param messages messages to push
      */
-    void pushMessage(String queueName,String messageBody);
+    void pushMessage(String queueName,String... messages);
 
     /**
      * pull a message from a queue, return null if the the queue is empty
      * @param queueName queue's name
-     * @return the message
-     * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
+     * @return the messages
      */
     Message pullMessage(String queueName);
 
@@ -41,17 +39,14 @@ public interface QueueService {
      * removeMessage a message from a queue
      * @param queueName the queue's name
      * @param receiptHandle the message's receipt handle
-     * @throws com.example.exception.QueueDoesNotExistException if the queue does not exist
      */
     void deleteMessage(String queueName,String receiptHandle);
 
     /**
      * create a queue
      * @param queueName the queue's name
-     * @param visibilityTimeout the visibility timeout in second, can not be less than 0
+     * @param visibilityTimeout the visibility timeout of queue in second, can not be less than 0
      * @return the queue's url
-     * @throws com.example.exception.QueueNameExistsException if a queue with the same name but a different value for visibility time
-     * out already exists
      */
-    String createQueue(String queueName,int visibilityTimeout);
+    String createQueue(String queueName,Long visibilityTimeout);
 }

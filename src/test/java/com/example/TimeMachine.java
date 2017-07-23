@@ -3,7 +3,7 @@ package com.example;
 import java.util.concurrent.TimeUnit;
 
 /**
- * a clock that could move time forward and back, used for testing
+ * a clock that could move time forward and back, used for testing.
  * not thread safe
  *
  * @author sanguan.tangsicheng on 2017/7/21 下午4:15

@@ -5,12 +5,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.QueueNameExistsException;
+import com.amazonaws.services.sqs.model.ReceiptHandleIsInvalidException;
 import com.example.model.Record;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -36,10 +40,7 @@ public class FileQueueService implements QueueService {
 
     private static final String SEPARATOR = ":";
 
-    Clock getClock() {
-        return clock;
-    }
-
+    @VisibleForTesting
     void setClock(Clock clock) {
         this.clock = clock;
     }
@@ -56,8 +57,8 @@ public class FileQueueService implements QueueService {
     static {
         try {
             INSTANCE = new FileQueueService();
-        } catch (Exception ignore) {
-            ignore.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -87,12 +88,12 @@ public class FileQueueService implements QueueService {
     private void load() throws IOException {
         for (File dir : this.baseDir.listFiles()) {
             if (dir.isDirectory()) {
-                loadQueue(dir);
+                initQueue(dir);
             }
         }
     }
 
-    private void loadQueue(File dir) throws IOException {
+    private void initQueue(File dir) throws IOException {
         String queueName = dir.getName();
         for (File file : dir.listFiles()) {
             if (file.getName().equals(CONFIG_FILE_NAME)) {
@@ -105,36 +106,42 @@ public class FileQueueService implements QueueService {
 
     }
 
-    private void lock(File lock) throws InterruptedException {
-        while (!lock.mkdir()) {
-            Thread.sleep(50);
-        }
-    }
-
-    private void unlock(File lock) {
-        lock.delete();
-    }
-
-
     @Override
     public void pushMessage(String queueName, String... messages) {
         validateQueueName(queueName);
         Long visibleFrom = clock.now();
         File messageFile = getMessageFile(queueName);
-        File file = getLock(queueName);
-        try {
-            lock(file);
+        String lockFileName = getLockFileName(queueName);
+        FileLock fileLock = null;
+        try (FileOutputStream fo = new FileOutputStream(lockFileName)) {
+            fileLock = acquireFileLock(fo);
             try (PrintWriter pw = new PrintWriter(new FileWriter(messageFile, true))) {
                 for (String message : messages) {
                     Record r = Record.create(visibleFrom, message);
                     pw.println(parseRecord(r));
                 }
             }
-        } catch (InterruptedException | IOException e) {
+            fileLock.release();
+        } catch (IOException e) {
             throw new RuntimeException(e);
-        } finally {
-            unlock(file);
         }
+    }
+
+    private FileLock acquireFileLock(FileOutputStream fo) throws IOException {
+        FileLock fileLock = null;
+        FileChannel fc = fo.getChannel();
+        while (fileLock == null) {
+            try {
+                fileLock = fc.lock();
+            } catch (OverlappingFileLockException ignore) {
+                //this indicates other thread in same JVM already takes the lock,
+            }
+        }
+        return fileLock;
+    }
+
+    private String getLockFileName(String queueName) {
+        return this.baseDir.getAbsolutePath() + File.separator + queueName + File.separator + LOCK_FILE_NAME;
     }
 
     /**
@@ -167,12 +174,6 @@ public class FileQueueService implements QueueService {
         return record;
     }
 
-
-    private File getLock(String queueName) {
-        return new File(this.baseDir.getAbsolutePath() + File.separator + queueName + File.separator + LOCK_FILE_NAME);
-
-    }
-
     private File getMessageFile(String queueName) {
         return queueMap.get(queueName);
     }
@@ -181,42 +182,42 @@ public class FileQueueService implements QueueService {
     public Message pullMessage(String queueName) {
         validateQueueName(queueName);
         File messageFile = getMessageFile(queueName);
-        File lock = getLock(queueName);
-        try {
-            lock(lock);
-            BufferedReader reader = new BufferedReader(new FileReader(messageFile));
-            String line = null;
-            Long now = clock.now();
-            Long visibilityTimeout = TimeUnit.SECONDS.toMillis(visibilityTimeoutMap.get(queueName));
+        String lockFileName = getLockFileName(queueName);
+        FileLock fileLock = null;
+        try (FileOutputStream fo = new FileOutputStream(lockFileName) ){
+            fileLock = acquireFileLock(fo);
             Message message = null;
-            List<String> allMessage = new LinkedList<>();
-            while ((line = reader.readLine()) != null) {
-                Record record = parseLineToRecord(line);
-                if (message == null && record.getVisibleFrom() <= now) {
-                    String receiptHandle = UUID.randomUUID().toString();
-                    record.setReceiptHandle(receiptHandle);
-                    record.setVisibleFrom(now + visibilityTimeout);
-                    message = new Message();
-                    message.withMessageId(UUID.randomUUID().toString()).withReceiptHandle(receiptHandle).withBody(record.getMessageBody());
-                    allMessage.add(parseRecord(record));
-                } else {
-                    allMessage.add(line);
+            try(BufferedReader reader = new BufferedReader(new FileReader(messageFile))) {
+                String line = null;
+                Long now = clock.now();
+                Long visibilityTimeout = TimeUnit.SECONDS.toMillis(visibilityTimeoutMap.get(queueName));
+                List<String> allMessage = new LinkedList<>();
+                while ((line = reader.readLine()) != null) {
+                    Record record = parseLineToRecord(line);
+                    if (message == null && record.getVisibleFrom() <= now) {
+                        String receiptHandle = UUID.randomUUID().toString();
+                        record.setReceiptHandle(receiptHandle);
+                        record.setVisibleFrom(now + visibilityTimeout);
+                        message = new Message();
+                        message.withMessageId(UUID.randomUUID().toString()).withReceiptHandle(receiptHandle).withBody(record.getMessageBody());
+                        allMessage.add(parseRecord(record));
+                    } else {
+                        allMessage.add(line);
+                    }
                 }
+                File tempFile = createFileUnderDir(messageFile.getParentFile(), DATA_FILE_NAME + ".tmp");
+                appendLineToFile(tempFile, allMessage.toArray(new String[]{}));
+                replaceFile(tempFile, messageFile);
             }
-            File tempFile = createFileUnderDir(messageFile.getParentFile(), DATA_FILE_NAME + ".tmp");
-            appendLineToFile(tempFile, allMessage.toArray(new String[]{}));
-            replaceFile(tempFile, messageFile);
+            fileLock.release();
             return message;
-        } catch (InterruptedException | IOException e) {
+        } catch (IOException e) {
             throw new AmazonServiceException("pull message fail.", e);
-        } finally {
-            unlock(lock);
         }
     }
 
     private void replaceFile(File newFile, File oldFile) throws IOException {
-        Files.copy(newFile, oldFile);
-        newFile.delete();
+        assert newFile.renameTo(oldFile);
     }
 
 
@@ -238,13 +239,13 @@ public class FileQueueService implements QueueService {
     @Override
     public void deleteMessage(String queueName, String receiptHandle) {
         validateQueueName(queueName);
-        File lock = getLock(queueName);
         File messageFile = getMessageFile(queueName);
-        try {
-            lock(lock);
-            BufferedReader reader = new BufferedReader(new FileReader(messageFile));
-            String line = null;
+        String lockFileName = getLockFileName(queueName);
+        FileLock fileLock = null;
+        try (FileOutputStream fo = new FileOutputStream(lockFileName); BufferedReader reader = new BufferedReader(new FileReader(messageFile))) {
+            fileLock = acquireFileLock(fo);
             List<String> restMessage = new LinkedList<>();
+            String line = null;
             boolean find = false;
             while ((line = reader.readLine()) != null) {
                 if (!line.contains(receiptHandle)) {
@@ -253,16 +254,18 @@ public class FileQueueService implements QueueService {
                     find = true;
                 }
             }
-            // the receiptHandle is valid,and file one
+            // the receiptHandle is valid
             if (find) {
                 File tempFile = createFileUnderDir(messageFile.getParentFile(), DATA_FILE_NAME + ".tmp");
                 appendLineToFile(tempFile, restMessage.toArray(new String[]{}));
                 replaceFile(tempFile, messageFile);
+                fileLock.release();
+            } else {
+                fileLock.release();
+                throw new ReceiptHandleIsInvalidException(String.format("%s is invalid receipt handle", receiptHandle));
             }
-        } catch (InterruptedException | IOException e) {
+        } catch (IOException e) {
             throw new AmazonServiceException("delete message fail", e);
-        } finally {
-            unlock(lock);
         }
     }
 
@@ -278,6 +281,7 @@ public class FileQueueService implements QueueService {
                 File dataDir = createDirUnderDir(this.baseDir, queueName);
                 File dataFile = createFileUnderDir(dataDir, DATA_FILE_NAME);
                 File configFile = createFileUnderDir(dataDir, CONFIG_FILE_NAME);
+                File lockFile = createFileUnderDir(dataDir, LOCK_FILE_NAME);
                 Files.asCharSink(configFile, Charset.defaultCharset()).write(String.valueOf(visibilityTimeout) + "\n");
                 queueMap.put(queueName, dataFile);
                 visibilityTimeoutMap.put(queueName, visibilityTimeout);

@@ -31,23 +31,15 @@ public class FileQueueService implements QueueService {
     private static String CONFIG_FILE_NAME = "config";
     private static FileQueueService INSTANCE;
 
-    static {
-        try {
-            INSTANCE = new FileQueueService();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private Map<String, File> queueMap;
     private Map<String, Long> visibilityTimeoutMap;
     private File baseDir;
     private Clock clock;
 
     private FileQueueService() throws IOException, InterruptedException {
-        String dir1 = System.getProperty("queue.dir");
-        String dir2 = System.getenv("queue_dir");
-        String dir3 = System.getProperty("user.home") + File.separator + "queue_service";
+        String dir1 = System.getProperty("canva.queue.dir");
+        String dir2 = System.getenv("canva_queue_dir");
+        String dir3 = System.getProperty("user.home") + File.separator + "canva_queue_data";
         String dir = dir1 != null ? dir1 : (dir2 != null ? dir2 : dir3);
         ensureDir(dir);
         baseDir = new File(dir);
@@ -57,7 +49,19 @@ public class FileQueueService implements QueueService {
         load();
     }
 
-    public static FileQueueService getInstance() {
+    public static FileQueueService getInstance() throws IOException, InterruptedException {
+        if (INSTANCE == null) {
+            synchronized (FileQueueService.class) {
+                if (INSTANCE == null) {
+                    try {
+                        INSTANCE = new FileQueueService();
+
+                    } catch (IOException | InterruptedException e) {
+                        throw new AmazonServiceException(e.getMessage(), e);
+                    }
+                }
+            }
+        }
         return INSTANCE;
     }
 
@@ -114,7 +118,7 @@ public class FileQueueService implements QueueService {
             }
             fileLock.release();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new AmazonServiceException(e.getMessage(), e);
         }
     }
 
@@ -137,6 +141,7 @@ public class FileQueueService implements QueueService {
 
     /**
      * parse a record as string, the format visibleFrom:receiptHandle:messageBody
+     *
      * @param record record to parse
      * @return the string will be stored in the file
      */

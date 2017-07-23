@@ -10,17 +10,17 @@ import java.util.concurrent.TimeUnit;
  */
 public class TimeMachine extends Clock {
 
-    long offset;
+    long currentTime = 0L;
 
     public Long now() {
-        return System.currentTimeMillis() + offset;
+        return currentTime;
     }
 
     /**
      * move the 'time' forward
      */
     public TimeMachine moveForward(long duration, TimeUnit unit) {
-        offset += unit.toMillis(duration);
+        currentTime += unit.toMillis(duration);
         return this;
     }
 
@@ -28,12 +28,13 @@ public class TimeMachine extends Clock {
      * move the 'time' back
      */
     public TimeMachine moveBack(long duration, TimeUnit unit) {
-        offset -= unit.toMillis(duration);
+        currentTime -= unit.toMillis(duration);
         return this;
     }
 
     public TimeMachine reset() {
-        offset = 0L;
+        currentTime = 0L;
         return this;
     }
+
 }

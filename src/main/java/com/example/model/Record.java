@@ -5,8 +5,11 @@ package com.example.model;
  */
 public class Record {
 
+    //the body of one message
     private String messageBody;
+    //the time point when this message is visible to the client
     private Long visibleFrom;
+    //receipt handle used to delete a message
     private String receiptHandle;
 
     public Record() {

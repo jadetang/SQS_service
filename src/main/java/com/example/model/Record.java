@@ -5,14 +5,16 @@ package com.example.model;
  */
 public class Record {
 
-    public Record(){ }
-
     private String messageBody;
-
     private Long visibleFrom;
+    private String receiptHandle;
 
-    public void setVisibleFrom(Long visibleFrom) {
-        this.visibleFrom = visibleFrom;
+    public Record() {
+    }
+
+    public static Record create(Long visibleFrom, String message) {
+        Record r = new Record();
+        return r.withVisibleFrom(visibleFrom).withMessageBody(message);
     }
 
     public String getReceiptHandle() {
@@ -23,8 +25,6 @@ public class Record {
         this.receiptHandle = receiptHandle;
     }
 
-    private String receiptHandle;
-
     public String getMessageBody() {
         return messageBody;
     }
@@ -33,21 +33,19 @@ public class Record {
         return visibleFrom;
     }
 
-    private Record withMessageBody(String messageBody){
+    public void setVisibleFrom(Long visibleFrom) {
+        this.visibleFrom = visibleFrom;
+    }
+
+    private Record withMessageBody(String messageBody) {
         this.messageBody = messageBody;
         return this;
     }
 
-    private Record withVisibleFrom(Long visibleFrom){
+    private Record withVisibleFrom(Long visibleFrom) {
         this.visibleFrom = visibleFrom;
         return this;
     }
-
-    public static Record create(Long visibleFrom,String message){
-        Record r = new Record();
-        return r.withVisibleFrom(visibleFrom).withMessageBody(message);
-    }
-
 
 
 }

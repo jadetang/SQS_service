@@ -5,7 +5,7 @@ package com.example;
  */
 public class Clock {
 
-    public Long now(){
+    public Long now() {
         return System.currentTimeMillis();
     }
 

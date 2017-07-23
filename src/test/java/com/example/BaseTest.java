@@ -6,9 +6,11 @@ import com.amazonaws.services.sqs.model.QueueNameExistsException;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
+/** some base applied both to memory queue and file queue, only test case irrelevant to visibility time out behavior.
  * @author sanguan.tangsicheng on 2017/7/20 下午11:27
  */
 public abstract class BaseTest {
@@ -16,6 +18,14 @@ public abstract class BaseTest {
     String queueName = "test queue";
 
     String messageBody = "this is a message";
+
+
+    /**
+     * return a queue service who's behavior irrelevant to the visibility timeout
+     *
+     * @return the queue service
+     */
+    public abstract QueueService getQueueService();
 
     @Test
     public void pullMessageBodyShouldEqualToOriginMessage() {
@@ -47,54 +57,22 @@ public abstract class BaseTest {
         QueueService queueService = getQueueService();
         queueService.createQueue(queueName, 1000L);
         int treadNum = 10;
-        Thread[] pushThreads = new Thread[treadNum];
-        Thread[] pullThreads = new Thread[treadNum];
+        List<Thread> pushThreads = new ArrayList<>(treadNum);
         int eachThreadPushMessage = 10;
         AtomicInteger globalCount = new AtomicInteger();
         for (int i = 0; i < treadNum; i++) {
-            pushThreads[i] = new Thread(new PushMessageWorker(queueService, queueName, eachThreadPushMessage, globalCount));
-            pullThreads[i] = new Thread(new PullMessageWorker(queueService, queueName, globalCount));
+            pushThreads.add(new Thread(new PushMessageWorker(queueService, queueName, eachThreadPushMessage, globalCount)));
         }
-        for (int i = 0; i < treadNum; i++) {
-            pushThreads[i].start();
-            pullThreads[i].start();
+        pushThreads.forEach(Thread::start);
+        for (Thread t : pushThreads) {
+            t.join();
         }
-        for (int i = 0; i < treadNum; i++) {
-            pushThreads[i].join();
-            pullThreads[i].join();
+        while (queueService.pullMessage(queueName) != null) {
+            globalCount.decrementAndGet();
         }
-
-        Assert.assertEquals(0 , globalCount.get());
+        Assert.assertEquals(0, globalCount.get());
     }
 
-    private static class PullMessageWorker implements Runnable {
-
-        private QueueService queueService;
-
-        private AtomicInteger count;
-
-        private String queueName;
-
-        PullMessageWorker(QueueService queueService, String queueName, AtomicInteger count) {
-            this.queueService = queueService;
-            this.count = count;
-            this.queueName = queueName;
-        }
-
-        @Override
-        public void run() {
-            Message message;
-            int retryTime = 10;
-            while (retryTime > 0) {
-                message = queueService.pullMessage(queueName);
-                if (message == null) {
-                    retryTime--;
-                } else {
-                    count.decrementAndGet();
-                }
-            }
-        }
-    }
 
 
     private static class PushMessageWorker implements Runnable {
@@ -123,12 +101,4 @@ public abstract class BaseTest {
             }
         }
     }
-
-
-    /**
-     * return a queue service who's behavior irrelevant to the visibility timeout
-     *
-     * @return
-     */
-    public abstract QueueService getQueueService();
 }

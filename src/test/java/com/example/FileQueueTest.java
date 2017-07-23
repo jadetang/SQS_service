@@ -30,7 +30,7 @@ public class FileQueueTest extends BaseTest {
         fileQueue.cleanAllData();
         fileQueue.setClock(timeMachine);
         timeMachine.reset();
-        fileQueue.createQueue(queueName,timeout);
+        fileQueue.createQueue(queueName, timeout);
     }
 
     @Override
@@ -63,14 +63,13 @@ public class FileQueueTest extends BaseTest {
 
     @Test
     public void deletedMessageCanNotBePullEvenAfterTimeOut() {
-        fileQueue.pushMessage(queueName,messageBody);
+        fileQueue.pushMessage(queueName, messageBody);
         Message message = fileQueue.pullMessage(queueName);
-        fileQueue.deleteMessage(queueName,message.getReceiptHandle());
-        timeMachine.moveForward(timeout,TimeUnit.SECONDS);
+        fileQueue.deleteMessage(queueName, message.getReceiptHandle());
+        timeMachine.moveForward(timeout, TimeUnit.SECONDS);
         Message messages = fileQueue.pullMessage(queueName);
         Assert.assertNull(messages);
     }
-
 
 
 }

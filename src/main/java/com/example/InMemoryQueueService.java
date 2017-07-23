@@ -4,6 +4,7 @@ import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.QueueNameExistsException;
 import com.example.model.Record;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.util.*;
@@ -16,7 +17,7 @@ public class InMemoryQueueService implements QueueService {
 
     private Map<String, LinkedList<Record>> queueMap;
 
-    private Map<String, Long> visibilityTimeout;
+    private Map<String, Long> visibilityTimeoutMap;
 
     private Clock clock;
 
@@ -24,7 +25,7 @@ public class InMemoryQueueService implements QueueService {
      * construct a in memory queue service
      */
     public InMemoryQueueService() {
-        this.visibilityTimeout = new HashMap<>();
+        this.visibilityTimeoutMap = new HashMap<>();
         this.queueMap = new HashMap<>();
         this.clock = new Clock();
     }
@@ -43,7 +44,7 @@ public class InMemoryQueueService implements QueueService {
         validateQueueName(queueName);
         LinkedList<Record> queue = queueMap.get(queueName);
         Long now = clock.now();
-        Long visibilityTimeout = this.visibilityTimeout.get(queueName);
+        Long visibilityTimeout = visibilityTimeoutMap.get(queueName);
         for (Record record : queue) {
             Long oldVisibleFrom = record.getVisibleFrom();
             if (oldVisibleFrom <= now) {
@@ -85,19 +86,16 @@ public class InMemoryQueueService implements QueueService {
     public synchronized String createQueue(String queueName, Long visibilityTimeout) {
         Preconditions.checkArgument(queueName != null && queueName.length() != 0);
         Preconditions.checkArgument(visibilityTimeout >= 0);
-        if (this.visibilityTimeout.get(queueName) != null && !this.visibilityTimeout.get(queueName).equals(visibilityTimeout)) {
+        if (visibilityTimeoutMap.get(queueName) != null && !visibilityTimeoutMap.get(queueName).equals(visibilityTimeout)) {
             throw new QueueNameExistsException(String.format("A queue already exists with the same name[%s] and a different value for attribute VisibilityTimeout", queueName));
         } else {
-            this.visibilityTimeout.put(queueName, TimeUnit.SECONDS.toMillis(visibilityTimeout));
+            visibilityTimeoutMap.put(queueName, TimeUnit.SECONDS.toMillis(visibilityTimeout));
             queueMap.putIfAbsent(queueName, new LinkedList<>());
             return queueName;
         }
     }
 
-    public Clock getClock() {
-        return clock;
-    }
-
+    @VisibleForTesting
     public void setClock(Clock clock) {
         this.clock = clock;
     }

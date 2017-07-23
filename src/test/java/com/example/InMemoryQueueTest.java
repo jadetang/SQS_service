@@ -57,10 +57,10 @@ public class InMemoryQueueTest extends BaseTest {
 
     @Test
     public void deletedMessageCanNotBePullEvenAfterTimeOut() {
-        queueService.pushMessage(queueName,messageBody);
+        queueService.pushMessage(queueName, messageBody);
         Message message = queueService.pullMessage(queueName);
-        queueService.deleteMessage(queueName,message.getReceiptHandle());
-        timeMachine.moveForward(timeout,TimeUnit.SECONDS);
+        queueService.deleteMessage(queueName, message.getReceiptHandle());
+        timeMachine.moveForward(timeout, TimeUnit.SECONDS);
         Message messages = queueService.pullMessage(queueName);
         Assert.assertNull(messages);
 

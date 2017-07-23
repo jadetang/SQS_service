@@ -1,4 +1,3 @@
-
 package com.example;
 
 import com.amazonaws.AmazonServiceException;
@@ -26,32 +25,10 @@ public class FileQueueService implements QueueService {
     // Task 3: Implement me if you have time.
     //
 
-    private Map<String, File> queueMap;
-
-    private Map<String, Long> visibilityTimeoutMap;
-
-    private File baseDir;
-
+    private static final String SEPARATOR = "\u0001:";   //add a invisible char before colon
     private static String DATA_FILE_NAME = "message";
-
     private static String LOCK_FILE_NAME = "lock";
-
     private static String CONFIG_FILE_NAME = "config";
-
-    private static final String SEPARATOR = ":";
-
-    @VisibleForTesting
-    void setClock(Clock clock) {
-        this.clock = clock;
-    }
-
-    private Clock clock;
-
-
-    public static FileQueueService getInstance() {
-        return INSTANCE;
-    }
-
     private static FileQueueService INSTANCE;
 
     static {
@@ -62,17 +39,31 @@ public class FileQueueService implements QueueService {
         }
     }
 
+    private Map<String, File> queueMap;
+    private Map<String, Long> visibilityTimeoutMap;
+    private File baseDir;
+    private Clock clock;
+
     private FileQueueService() throws IOException, InterruptedException {
         String dir1 = System.getProperty("queue.dir");
         String dir2 = System.getenv("queue_dir");
         String dir3 = System.getProperty("user.home") + File.separator + "queue_service";
         String dir = dir1 != null ? dir1 : (dir2 != null ? dir2 : dir3);
         ensureDir(dir);
-        this.baseDir = new File(dir);
-        this.clock = new Clock();
+        baseDir = new File(dir);
+        clock = new Clock();
         queueMap = new HashMap<>();
         visibilityTimeoutMap = new HashMap<>();
         load();
+    }
+
+    public static FileQueueService getInstance() {
+        return INSTANCE;
+    }
+
+    @VisibleForTesting
+    void setClock(Clock clock) {
+        this.clock = clock;
     }
 
     private void ensureDir(String dirName) {
@@ -86,7 +77,7 @@ public class FileQueueService implements QueueService {
     }
 
     private void load() throws IOException {
-        for (File dir : this.baseDir.listFiles()) {
+        for (File dir : baseDir.listFiles()) {
             if (dir.isDirectory()) {
                 initQueue(dir);
             }
@@ -141,14 +132,13 @@ public class FileQueueService implements QueueService {
     }
 
     private String getLockFileName(String queueName) {
-        return this.baseDir.getAbsolutePath() + File.separator + queueName + File.separator + LOCK_FILE_NAME;
+        return baseDir.getAbsolutePath() + File.separator + queueName + File.separator + LOCK_FILE_NAME;
     }
 
     /**
      * parse a record as string, the format visibleFrom:receiptHandle:messageBody
-     *
-     * @param record
-     * @return
+     * @param record record to parse
+     * @return the string will be stored in the file
      */
     private String parseRecord(Record record) {
         StringBuilder sb = new StringBuilder();
@@ -162,7 +152,7 @@ public class FileQueueService implements QueueService {
      * parse a string to a record,
      *
      * @param line the format visibleFrom:receiptHandle:messageBody
-     * @return
+     * @return the record
      */
     private Record parseLineToRecord(String line) {
         String[] data = line.split(SEPARATOR);
@@ -184,10 +174,10 @@ public class FileQueueService implements QueueService {
         File messageFile = getMessageFile(queueName);
         String lockFileName = getLockFileName(queueName);
         FileLock fileLock = null;
-        try (FileOutputStream fo = new FileOutputStream(lockFileName) ){
+        try (FileOutputStream fo = new FileOutputStream(lockFileName)) {
             fileLock = acquireFileLock(fo);
             Message message = null;
-            try(BufferedReader reader = new BufferedReader(new FileReader(messageFile))) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(messageFile))) {
                 String line = null;
                 Long now = clock.now();
                 Long visibilityTimeout = TimeUnit.SECONDS.toMillis(visibilityTimeoutMap.get(queueName));
@@ -231,7 +221,7 @@ public class FileQueueService implements QueueService {
 
 
     private void validateQueueName(String queueName) {
-        if (!this.queueMap.containsKey(queueName)) {
+        if (!queueMap.containsKey(queueName)) {
             throw new QueueDoesNotExistException(queueName);
         }
     }
@@ -241,11 +231,11 @@ public class FileQueueService implements QueueService {
         validateQueueName(queueName);
         File messageFile = getMessageFile(queueName);
         String lockFileName = getLockFileName(queueName);
-        FileLock fileLock = null;
+        FileLock fileLock;
         try (FileOutputStream fo = new FileOutputStream(lockFileName); BufferedReader reader = new BufferedReader(new FileReader(messageFile))) {
             fileLock = acquireFileLock(fo);
             List<String> restMessage = new LinkedList<>();
-            String line = null;
+            String line;
             boolean find = false;
             while ((line = reader.readLine()) != null) {
                 if (!line.contains(receiptHandle)) {
@@ -274,14 +264,14 @@ public class FileQueueService implements QueueService {
 
         Preconditions.checkArgument(queueName != null && queueName.length() != 0);
         Preconditions.checkArgument(visibilityTimeout >= 0);
-        if (this.visibilityTimeoutMap.get(queueName) != null && !this.visibilityTimeoutMap.get(queueName).equals(visibilityTimeout)) {
+        if (visibilityTimeoutMap.get(queueName) != null && !visibilityTimeoutMap.get(queueName).equals(visibilityTimeout)) {
             throw new QueueNameExistsException(String.format("A queue already exists with the same name[%s] and a different value for attribute VisibilityTimeout", queueName));
-        } else if (!this.queueMap.containsKey(queueName)) {
+        } else if (!queueMap.containsKey(queueName)) {
             try {
-                File dataDir = createDirUnderDir(this.baseDir, queueName);
+                File dataDir = createDirUnderDir(baseDir, queueName);
                 File dataFile = createFileUnderDir(dataDir, DATA_FILE_NAME);
                 File configFile = createFileUnderDir(dataDir, CONFIG_FILE_NAME);
-                File lockFile = createFileUnderDir(dataDir, LOCK_FILE_NAME);
+                createFileUnderDir(dataDir, LOCK_FILE_NAME);
                 Files.asCharSink(configFile, Charset.defaultCharset()).write(String.valueOf(visibilityTimeout) + "\n");
                 queueMap.put(queueName, dataFile);
                 visibilityTimeoutMap.put(queueName, visibilityTimeout);
@@ -290,7 +280,7 @@ public class FileQueueService implements QueueService {
                 throw new AmazonServiceException("create queue fail", e);
             }
         } else {
-            return this.queueMap.get(queueName).getAbsolutePath();
+            return queueMap.get(queueName).getAbsolutePath();
         }
     }
 
@@ -301,7 +291,6 @@ public class FileQueueService implements QueueService {
      * @return true if the named file does not exist and was
      * successfully created; false if the named file
      * already exists
-     * @throws IOException
      */
     private File createFileUnderDir(File dir, String fileName) throws IOException {
         File newFile = new File(dir.getAbsolutePath() + File.separator + fileName);
@@ -318,9 +307,9 @@ public class FileQueueService implements QueueService {
 
     @VisibleForTesting
     synchronized void cleanAllData() {
-        deleteFileUnderDir(this.baseDir);
-        this.queueMap.clear();
-        this.visibilityTimeoutMap.clear();
+        deleteFileUnderDir(baseDir);
+        queueMap.clear();
+        visibilityTimeoutMap.clear();
     }
 
     private void deleteFileUnderDir(File dir) {

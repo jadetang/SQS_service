@@ -23,13 +23,15 @@ public interface QueueService {
 
     /**
      * push a message to a queue
+     *
      * @param queueName queue's name
-     * @param messages messages to push
+     * @param messages  messages to push
      */
-    void pushMessage(String queueName,String... messages);
+    void pushMessage(String queueName, String... messages);
 
     /**
      * pull a message from a queue, return null if the the queue is empty
+     *
      * @param queueName queue's name
      * @return the messages
      */
@@ -37,16 +39,18 @@ public interface QueueService {
 
     /**
      * removeMessage a message from a queue
-     * @param queueName the queue's name
+     *
+     * @param queueName     the queue's name
      * @param receiptHandle the message's receipt handle
      */
-    void deleteMessage(String queueName,String receiptHandle);
+    void deleteMessage(String queueName, String receiptHandle);
 
     /**
      * create a queue
-     * @param queueName the queue's name
+     *
+     * @param queueName         the queue's name
      * @param visibilityTimeout the visibility timeout of queue in second, can not be less than 0
      * @return the queue's url
      */
-    String createQueue(String queueName,Long visibilityTimeout);
+    String createQueue(String queueName, Long visibilityTimeout);
 }

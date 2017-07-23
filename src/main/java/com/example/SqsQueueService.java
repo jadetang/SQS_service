@@ -24,7 +24,7 @@ public class SqsQueueService implements QueueService {
     }
 
     private String getQueueUrl(String queueName) {
-        return this.sqsClient.getQueueUrl(queueName).getQueueUrl();
+        return sqsClient.getQueueUrl(queueName).getQueueUrl();
     }
 
     @Override

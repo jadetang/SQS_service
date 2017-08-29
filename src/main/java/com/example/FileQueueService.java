@@ -49,13 +49,12 @@ public class FileQueueService implements QueueService {
         load();
     }
 
-    public static FileQueueService getInstance() throws IOException, InterruptedException {
+    public static FileQueueService getInstance() {
         if (INSTANCE == null) {
             synchronized (FileQueueService.class) {
                 if (INSTANCE == null) {
                     try {
                         INSTANCE = new FileQueueService();
-
                     } catch (IOException | InterruptedException e) {
                         throw new AmazonServiceException(e.getMessage(), e);
                     }

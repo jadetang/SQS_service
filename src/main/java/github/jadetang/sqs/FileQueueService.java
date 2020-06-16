@@ -1,15 +1,15 @@
-package com.example;
+package github.jadetang.sqs;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.QueueNameExistsException;
 import com.amazonaws.services.sqs.model.ReceiptHandleIsInvalidException;
-import com.example.model.Record;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 
+import github.jadetang.sqs.model.Record;
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;

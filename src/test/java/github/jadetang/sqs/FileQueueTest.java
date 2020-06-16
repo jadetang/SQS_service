@@ -1,4 +1,4 @@
-package com.example;
+package github.jadetang.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
 import org.junit.Assert;

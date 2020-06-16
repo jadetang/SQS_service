@@ -1,4 +1,4 @@
-package com.example;
+package github.jadetang.sqs;
 
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.*;

@@ -1,8 +1,9 @@
-package com.example;
+package github.jadetang.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.QueueNameExistsException;
+import github.jadetang.sqs.QueueService;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -1,4 +1,4 @@
-package com.example;
+package github.jadetang.sqs;
 
 import java.util.concurrent.TimeUnit;
 

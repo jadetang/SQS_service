@@ -1,12 +1,12 @@
-package com.example;
+package github.jadetang.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.QueueNameExistsException;
-import com.example.model.Record;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import github.jadetang.sqs.model.Record;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 

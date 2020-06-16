@@ -1,4 +1,4 @@
-package com.example.model;
+package github.jadetang.sqs.model;
 
 /**
  * @author sanguan.tangsicheng on 2017/7/21 下午3:04
